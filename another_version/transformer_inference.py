@@ -25,6 +25,12 @@ class VideoDataset:
                 self.descriptors.extend(des)
         cap.release()
         logging.info(f"Total descriptors collected: {len(self.descriptors)}")
+        
+        # If no descriptors were found, raise an error
+        if len(self.descriptors) == 0:
+            raise ValueError("No descriptors collected from the video. Please check the video file path, file format, or adjust the ORB parameters.")
+
+        # Cluster all descriptors using KMeans
         logging.info("Clustering descriptors with KMeans...")
         self.kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(np.array(self.descriptors))
         logging.info("Clustering completed.")
@@ -57,7 +63,7 @@ def infer_video(model, video_path, device, kmeans):
         cluster_labels = kmeans.predict(descriptors)
         inp = torch.tensor(cluster_labels.reshape(-1, 1), dtype=torch.float32).unsqueeze(0).to(device)
         output = model(inp)
-        pos_text = f"Position: x={output[0][0,0].item():.2f}, y={output[0][0,1].item():.2f}"
+        pos_text = f"Position: x={output[0][0,0].item():.5f}, y={output[0][0,1].item():.5f}"
         cv2.putText(frame, pos_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255,0,0), 2)
         cv2.imshow("Inference", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -66,7 +72,7 @@ def infer_video(model, video_path, device, kmeans):
     cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    video_path = "drone_footage.mp4"
+    video_path = "../drone_flight.mp4"
     model_path = "transformer_model.pth"
     cache_file = "dataset_cache_inference.pkl"
     input_dim = 1
